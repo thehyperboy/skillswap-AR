@@ -23,7 +23,8 @@ model User {
   reviewsGiven     Review[] @relation("reviewer")
   skillKarma      SkillKarma?
   karmaLogs       SkillKarmaLog[] @relation("karmaLogs")
-  badges          UserBadge[]
+  badges          UserBadge[] @relation("badges")
+  resolvedReports Report[] @relation("resolvedReports")
   availabilitySlots AvailabilitySlot[]
   accounts        Account[]
   sessions        Session[]
@@ -282,6 +283,7 @@ model Report {
   resolution        String?  @db.Text
   resolvedBy        User?    @relation(name: "resolvedReports", fields: [resolvedById], references: [id], onDelete: SetNull)
   resolvedById      String?
+  adminActions      AdminAction[] @relation("adminActions")
   resolvedAt        DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -294,12 +296,12 @@ model Report {
 
 model AdminAction {
   id                String   @id @default(cuid())
-  admin             User     @relation("adminUser", fields: [adminId], references: [id], onDelete: SetNull)
+  admin             User?    @relation("adminUser", fields: [adminId], references: [id], onDelete: SetNull)
   adminId           String?
   action            AdminActionType
   targetUser        User?    @relation("targetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
   targetUserId      String?
-  targetReport      Report?  @relation(fields: [targetReportId], references: [id], onDelete: SetNull)
+  targetReport      Report?  @relation("adminActions", fields: [targetReportId], references: [id], onDelete: SetNull)
   targetReportId    String?
   reason            String   @db.Text
   details           String?  @db.Text
