@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       validatedData = signupSchema.parse(body);
     } catch (error) {
       if (error instanceof ZodError) {
-        const message = error.errors
+        const message = error.issues
           .map((err) => `${err.path.join(".")}: ${err.message}`)
           .join("; ");
         return NextResponse.json({ error: message }, { status: 400, headers: getSecurityHeaders() });

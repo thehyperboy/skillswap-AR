@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      badges: badges.map((b) => ({
+      badges: badges.map((b: any) => ({
         name: b.badgeName,
         earnedAt: b.earnedAt,
       })),

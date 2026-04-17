@@ -30,14 +30,12 @@ export async function GET(
       karma: {
         points: karma.points,
         level: karma.level,
-        // @ts-expect-error - badge may not be in old Prisma types yet
         badge: karma.badge,
         completedSessions: karma.completedSessionCount,
-        // @ts-expect-error - averageRating may not be in old Prisma types yet
         averageRating: karma.averageRating,
         totalReviews: karma.totalReviewsReceived,
       },
-      history: history.map((log) => ({
+      history: history.map((log: any) => ({
         points: log.pointsChanged,
         reason: log.reason,
         description: log.description,

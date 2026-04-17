@@ -6,4 +6,17 @@
   - Environments: .env
 
    Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+Failed to compile.
 
+./src/app/api/karma/route.ts:46:9
+Type error: Unused '@ts-expect-error' directive.
+
+  44 |         points: karma.points,
+  45 |         level: karma.level,
+> 46 |         // @ts-expect-error - badge may not be in old Prisma types yet
+     |         ^
+  47 |         badge: karma.badge,
+  48 |         completedSessions: karma.completedSessionCount,
+  49 |         // @ts-expect-error - averageRating may not be in old Prisma types yet

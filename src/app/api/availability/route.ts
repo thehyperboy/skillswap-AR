@@ -10,6 +10,7 @@ import { WeeklySchedule } from "@/lib/availability";
  */
 const AvailabilityUpdateSchema = z.object({
   schedule: z.record(
+    z.string(),
     z.object({
       startTime: z.string().regex(/^\d{2}:\d{2}$/),
       endTime: z.string().regex(/^\d{2}:\d{2}$/),
@@ -127,7 +128,7 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        { error: "Validation error", details: error.issues },
         { status: 400 }
       );
     }

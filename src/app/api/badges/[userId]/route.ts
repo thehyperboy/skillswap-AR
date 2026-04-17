@@ -24,7 +24,7 @@ export async function GET(
     });
 
     return NextResponse.json({
-      badges: badges.map((b) => ({
+      badges: badges.map((b: any) => ({
         name: b.badgeName,
         earnedAt: b.earnedAt,
       })),
