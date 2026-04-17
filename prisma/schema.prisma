@@ -1,0 +1,412 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  role            UserRole  @default(USER)
+  emailVerified   DateTime?
+  hashedPassword  String
+  profile         Profile?
+  offeredSkills   UserSkillOffered[]
+  wantedSkills    UserSkillWanted[]
+  collaborationRequestsSent     CollaborationRequest[] @relation("requestsSent")
+  collaborationRequestsReceived CollaborationRequest[] @relation("requestsReceived")
+  reviewsReceived  Review[] @relation("reviewed")
+  reviewsGiven     Review[] @relation("reviewer")
+  skillKarma      SkillKarma?
+  karmaLogs       SkillKarmaLog[] @relation("karmaLogs")
+  badges          UserBadge[]
+  availabilitySlots AvailabilitySlot[]
+  accounts        Account[]
+  sessions        Session[]
+  
+  // Moderation fields
+  isSuspended     Boolean   @default(false)
+  suspensionReason String?
+  suspendedAt     DateTime?
+  suspendedUntil  DateTime?
+  isFlagged       Boolean   @default(false)
+  flagReason      String?
+  flaggedAt       DateTime?
+  
+  // Relations for moderation
+  reportsReceived Report[] @relation("reportedUser")
+  reportsSubmitted Report[] @relation("reporter")
+  adminActionsPerformed AdminAction[] @relation("adminUser")
+  adminActionsReceived AdminAction[] @relation("targetUser")
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@index([isSuspended])
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Profile {
+  id               String   @id @default(cuid())
+  user             User     @relation(fields: [userId], references: [id])
+  userId           String   @unique
+  displayName      String
+  bio              String?
+  avatarUrl        String?
+  city             String?
+  locality         String?
+  country          String?
+  latitude         Float?
+  longitude        Float?
+  locationPrivacy  LocationPrivacy @default(APPROXIMATE)
+  onboardingStep   Int   @default(0)
+  collaborationMode CollaborationMode @default(OFFLINE)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([city])
+  @@index([locality])
+  @@index([latitude, longitude])
+}
+
+model SkillCategory {
+  id      String  @id @default(cuid())
+  name    String  @unique
+  skills  Skill[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Skill {
+  id         String  @id @default(cuid())
+  name       String
+  category   SkillCategory @relation(fields: [categoryId], references: [id])
+  categoryId String
+  offeredBy  UserSkillOffered[]
+  wantedBy   UserSkillWanted[]
+  requests   CollaborationRequest[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([name, categoryId])
+}
+
+model UserSkillOffered {
+  id        String @id @default(cuid())
+  user      User   @relation(fields: [userId], references: [id])
+  userId    String
+  skill     Skill  @relation(fields: [skillId], references: [id])
+  skillId   String
+  proficiency SkillProficiency @default(INTERMEDIATE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, skillId])
+  @@index([skillId])
+}
+
+model UserSkillWanted {
+  id        String @id @default(cuid())
+  user      User   @relation(fields: [userId], references: [id])
+  userId    String
+  skill     Skill  @relation(fields: [skillId], references: [id])
+  skillId   String
+  priority  Int    @default(5)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, skillId])
+  @@index([skillId])
+}
+
+model CollaborationRequest {
+  id             String   @id @default(cuid())
+  sender         User     @relation("requestsSent", fields: [senderId], references: [id])
+  senderId       String
+  recipient      User     @relation("requestsReceived", fields: [recipientId], references: [id])
+  recipientId    String
+  skill          Skill?   @relation(fields: [skillId], references: [id])
+  skillId        String?
+  message        String?
+  status         CollaborationStatus @default(PENDING)
+  scheduledFor   DateTime?
+  review         Review?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([recipientId, status])
+}
+
+model Review {
+  id                      String   @id @default(cuid())
+  reviewed                User     @relation("reviewed", fields: [reviewedId], references: [id])
+  reviewedId              String
+  reviewer                User     @relation("reviewer", fields: [reviewerId], references: [id])
+  reviewerId              String
+  collaborationRequest    CollaborationRequest @relation(fields: [collaborationRequestId], references: [id])
+  collaborationRequestId  String   @unique
+  communicationRating     Int      @default(5)
+  punctualityRating       Int      @default(5)
+  teachingRating          Int      @default(5)
+  overallRating           Int      @default(5)
+  comment                 String?
+  isAnonymous             Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([reviewedId])
+  @@index([reviewerId])
+  @@index([collaborationRequestId])
+}
+
+model SkillKarmaLog {
+  id                      String   @id @default(cuid())
+  user                    User     @relation("karmaLogs", fields: [userId], references: [id])
+  userId                  String
+  pointsChanged           Int
+  reason                  KarmaReason
+  collaborationRequestId  String?
+  reviewId                String?
+  description             String?
+  createdAt               DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([collaborationRequestId])
+  @@index([reviewId])
+}
+
+model SkillKarma {
+  id                      String @id @default(cuid())
+  user                    User   @relation(fields: [userId], references: [id])
+  userId                  String @unique
+  points                  Int    @default(0)
+  level                   Int    @default(1)
+  badge                   KarmaBadge @default(NOVICE)
+  completedSessionCount   Int    @default(0)
+  averageRating           Float  @default(5.0)
+  totalReviewsReceived    Int    @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model AvailabilitySlot {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  startsAt   DateTime
+  endsAt     DateTime
+  recurring  RecurrenceRule @default(DAILY)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String   // emoji or icon name
+  category    BadgeCategory
+  criteria    String? // Description of how to earn it
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  user      User     @relation("badges", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  badgeName String
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, badgeName])
+  @@index([userId])
+}
+
+model Report {
+  id                String   @id @default(cuid())
+  reportedUser      User     @relation("reportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reportedUserId    String
+  reporter          User     @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporterId        String
+  contentType       ReportContentType
+  contentId         String   // ID of what's being reported (userId, requestId, reviewId, etc.)
+  reason            ReportReason
+  description       String   @db.Text
+  status            ReportStatus @default(PENDING)
+  adminNotes        String?  @db.Text
+  resolution        String?  @db.Text
+  resolvedBy        User?    @relation(name: "resolvedReports", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedById      String?
+  resolvedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([reportedUserId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([resolvedById])
+}
+
+model AdminAction {
+  id                String   @id @default(cuid())
+  admin             User     @relation("adminUser", fields: [adminId], references: [id], onDelete: SetNull)
+  adminId           String?
+  action            AdminActionType
+  targetUser        User?    @relation("targetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetUserId      String?
+  targetReport      Report?  @relation(fields: [targetReportId], references: [id], onDelete: SetNull)
+  targetReportId    String?
+  reason            String   @db.Text
+  details           String?  @db.Text
+  createdAt         DateTime @default(now())
+
+  @@index([adminId])
+  @@index([targetUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum LocationPrivacy {
+  PUBLIC
+  APPROXIMATE
+  PRIVATE
+}
+
+enum CollaborationMode {
+  ONLINE
+  OFFLINE
+  HYBRID
+}
+
+enum CollaborationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+enum SkillProficiency {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum RecurrenceRule {
+  DAILY
+  WEEKLY
+  WEEKDAYS
+  WEEKENDS
+}
+
+enum KarmaReason {
+  COLLABORATION_COMPLETED
+  POSITIVE_REVIEW
+  NEGATIVE_REVIEW
+  CANCELLATION
+  PROFILE_COMPLETION
+}
+
+enum KarmaBadge {
+  NOVICE
+  APPRENTICE
+  CRAFTSMAN
+  EXPERT
+  MASTER
+}
+
+enum BadgeCategory {
+  MILESTONE    // 5, 10, 25, 50 collaborations
+  QUALITY      // High average rating, positive reviews
+  ENGAGEMENT   // Profile completion, responsiveness
+  GROWTH       // Level progression
+  COMMUNITY    // Special community contributions
+}
+
+enum ReportReason {
+  HARASSMENT
+  SCAM_OR_FRAUD
+  INAPPROPRIATE_CONTENT
+  SEXUAL_CONTENT
+  OFFENSIVE_LANGUAGE
+  SPAM
+  MISREPRESENTATION
+  NO_SHOW
+  OTHER
+}
+
+enum ReportContentType {
+  USER_PROFILE
+  COLLABORATION_REQUEST
+  REVIEW
+  MESSAGE
+}
+
+enum ReportStatus {
+  PENDING
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+}
+
+enum AdminActionType {
+  SUSPENDED_USER
+  UNSUSPENDED_USER
+  FLAGGED_USER
+  UNFLAGGED_USER
+  DELETED_REPORT
+  CLOSED_REPORT
+  WARNED_USER
+  DELETED_CONTENT
+}
+
